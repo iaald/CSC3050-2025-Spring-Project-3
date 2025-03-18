@@ -11,5 +11,5 @@ mkdir -p ../results
 
 
 for riscv_file in ../riscv-elf/*.riscv; do
-  ./Simulator "$riscv_file" > "../result/$(basename "$riscv_file" .riscv).txt"
+  ./Simulator "$riscv_file" > "../results/$(basename "$riscv_file" .riscv).txt"
 done
