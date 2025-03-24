@@ -11,6 +11,6 @@ mkdir -p ../results
 
 
 for riscv_file in ../riscv-elf/*.riscv; do
-   echo "Running $riscv_file"
-  ./Simulator "$riscv_file" > "../results/$(basename "$riscv_file" .riscv).txt"
+   echo "Running $riscv_file without data forwarding"
+  ./Simulator "$riscv_file" -x > "../results/$(basename "$riscv_file" .riscv).txt"
 done
