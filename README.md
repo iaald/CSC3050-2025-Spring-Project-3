@@ -54,11 +54,11 @@ bash run-simulator-without-data-forwarding.sh
 ```
 Parameters:
 
-1. `-v` for verbose output, can redirect output to file for further analysis
+1. `-v` for verbose output, can redirect output to file for further analysis.
 2. `-s` for single step execution, often used in combination with `-v`.
-3. `-d` for creating memory and register history dump in `dump.txt`
-4. `-b` for branch perdiction strategy (default `BTFNT`), accepted parameters are `AT`, `NT`, `BTFNT` and `BPB`. **You can ignore this one in this assignment**
-5. `-x` for disabling data forwarding. **You need to implement this one**
+3. `-d` for creating memory and register history dump in `dump.txt`.
+4. `-b` for branch perdiction strategy (default `BTFNT`), accepted parameters are `AT`, `NT`, `BTFNT`. and `BPB`. **You can ignore this one in this assignment**.
+5. `-x` for disabling data forwarding. **You need to implement this one**.
 
 **Hint: You can use -v -s for debugging.**
 
