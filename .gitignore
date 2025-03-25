@@ -10,4 +10,5 @@ cacti/obj_opt
 cacti/cacti
 d4-7/
 results/
+results-without-data-forwarding/
 riscv-elf/

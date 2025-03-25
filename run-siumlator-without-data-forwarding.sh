@@ -7,10 +7,15 @@ cd build
 cmake ..
 make
 
-mkdir -p ../results
+mkdir -p ../results-without-data-forwarding
 
 
 for riscv_file in ../riscv-elf/*.riscv; do
    echo "Running $riscv_file without data forwarding"
-  ./Simulator "$riscv_file" -x > "../results/$(basename "$riscv_file" .riscv).txt"
+   # For test_syscall.riscv, we need to send "1\na" to stdin
+    if [ "$(basename "$riscv_file" .riscv)" == "test_syscall" ]; then
+        echo -e "1\na" | ./Simulator "$riscv_file" -x > "../results-without-data-forwarding/$(basename "$riscv_file" .riscv).txt"
+        continue
+    fi
+  ./Simulator "$riscv_file" -x > "../results-without-data-forwarding/$(basename "$riscv_file" .riscv).txt"
 done
