@@ -64,11 +64,16 @@ Parameters:
 
 ## Expected Results
 
-| Test case     | Data forwarding? | Cycles |
-|---------------|------------------|--------|
-| ackermann     | ✔️                | 480358 |
-| ackermann     | ❌                | 719706 |
-| fmadd / fmsub | ✔️                | 813    |
-| fmadd / fmsub | ❌                | 1113   |
-| fnm           | ✔️                | 811    |
-| fnm           | ❌                | 1109   |
+| Test case     | Data forwarding? | Handle WriteBack before Decode? \* | Cycles |
+|---------------|------------------|---------------------------------|--------|
+| ackermann     | ✔️                | /                               | 480358 |
+| ackermann     | ❌                | ✔️                               | 623850 |
+| ackermann     | ❌                | ❌                               | 719706 |
+| fmadd / fmsub | ✔️                | /                               | 813    |
+| fmadd / fmsub | ❌                | ✔️                               | 1005   |
+| fmadd / fmsub | ❌                | ❌                               | 1113   |
+| fnm           | ✔️                | /                               | 811    |
+| fnm           | ❌                | ✔️                               | 1002   |
+| fnm           | ❌                | ❌                               | 1109   |
+
+\* Whether you handle WriteBack before Decode or not, we will give you full marks. If you are not aware of this case, please review the lecture: Page 12, Chapter 4: Pipeline Hazards.
