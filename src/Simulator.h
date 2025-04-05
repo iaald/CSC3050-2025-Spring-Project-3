@@ -106,6 +106,10 @@ enum Inst {
   FMSUB = 39,
   FNMADD = 40,
   FNMSUB = 41,
+  MUL = 42,
+  MULH = 43,
+  DIV = 44,
+  REM = 45,
   UNKNOWN = -1,
 };
 extern const char *INSTNAME[];
@@ -153,6 +157,7 @@ public:
   bool isSingleStep;
   bool verbose;
   bool shouldDumpHistory;
+  bool dataforwarding;
   uint32_t pc;
   uint32_t reg[RISCV::REGNUM];
   uint32_t stackBase;

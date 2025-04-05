@@ -25,6 +25,7 @@ char *elfFile = nullptr;
 bool verbose = 0;
 bool isSingleStep = 0;
 bool dumpHistory = 0;
+bool dataforwarding = 1;
 uint32_t stackBaseAddr = 0x80000000;
 uint32_t stackSize = 0x400000;
 MemoryManager memory;
@@ -89,6 +90,7 @@ int main(int argc, char **argv) {
   simulator.isSingleStep = isSingleStep;
   simulator.verbose = verbose;
   simulator.shouldDumpHistory = dumpHistory;
+  simulator.dataforwarding = dataforwarding;
   simulator.branchPredictor->strategy = strategy;
   simulator.pc = reader.get_entry();
   simulator.initStack(stackBaseAddr, stackSize);
@@ -137,6 +139,9 @@ bool parseParameters(int argc, char **argv) {
         } else {
           return false;
         }
+        break;
+      case 'x':
+        dataforwarding = 0;
         break;
       default:
         return false;
