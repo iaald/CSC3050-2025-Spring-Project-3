@@ -4,7 +4,7 @@
  *   Always Not Taken
  *   Backward Taken, Forward Not Taken
  *   Branch Prediction Buffer with 2bit history information
- * 
+ *
  * Created by He, Hao on 2019-3-25
  */
 
@@ -28,14 +28,14 @@ public:
   BranchPredictor();
   ~BranchPredictor();
 
-  bool predict(uint32_t pc, uint32_t insttype, int64_t op1, int64_t op2,
-               int64_t offset);
+  bool predict(uint32_t pc, uint32_t insttype, int32_t op1, int32_t op2,
+               int32_t offset);
 
-  // For Branch Prediction Buffer 
+  // For Branch Prediction Buffer
   void update(uint32_t pc, bool branch);
 
   std::string strategyName();
-  
+
 private:
   enum PredictorState {
     STRONG_TAKEN = 0, WEAK_TAKEN = 1,

@@ -37,15 +37,12 @@ public:
   bool setInt(uint32_t addr, uint32_t val, uint32_t *cycles = nullptr);
   uint32_t getInt(uint32_t addr, uint32_t *cycles = nullptr);
 
-  bool setLong(uint32_t addr, uint64_t val, uint32_t *cycles = nullptr);
-  uint64_t getLong(uint32_t addr, uint32_t *cycles = nullptr);
-
   void printInfo();
   void printStatistics();
 
   std::string dumpMemory();
 
-  void setCache(Cache *cache);  
+  void setCache(Cache *cache);
 
 private:
   uint32_t getFirstEntryId(uint32_t addr);

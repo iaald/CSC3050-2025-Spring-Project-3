@@ -77,47 +77,35 @@ enum Inst {
   LB = 10,
   LH = 11,
   LW = 12,
-  LD = 13,
-  LBU = 14,
-  LHU = 15,
-  SB = 16,
-  SH = 17,
-  SW = 18,
-  SD = 19,
-  ADDI = 20,
-  SLTI = 21,
-  SLTIU = 22,
-  XORI = 23,
-  ORI = 24,
-  ANDI = 25,
-  SLLI = 26,
-  SRLI = 27,
-  SRAI = 28,
-  ADD = 29,
-  SUB = 30,
-  SLL = 31,
-  SLT = 32,
-  SLTU = 33,
-  XOR = 34,
-  SRL = 35,
-  SRA = 36,
-  OR = 37,
-  AND = 38,
-  ECALL = 39,
-  ADDIW = 40,
-  MUL = 41,
-  MULH = 42,
-  DIV = 43,
-  REM = 44,
-  LWU = 45,
-  SLLIW = 46,
-  SRLIW = 47,
-  SRAIW = 48,
-  ADDW = 49,
-  SUBW = 50,
-  SLLW = 51,
-  SRLW = 52,
-  SRAW = 53,
+  LBU = 13,
+  LHU = 14,
+  SB = 15,
+  SH = 16,
+  SW = 17,
+  ADDI = 18,
+  SLTI = 19,
+  SLTIU = 20,
+  XORI = 21,
+  ORI = 22,
+  ANDI = 23,
+  SLLI = 24,
+  SRLI = 25,
+  SRAI = 26,
+  ADD = 27,
+  SUB = 28,
+  SLL = 29,
+  SLT = 30,
+  SLTU = 31,
+  XOR = 32,
+  SRL = 33,
+  SRA = 34,
+  OR = 35,
+  AND = 36,
+  ECALL = 37,
+  FMADD = 38,
+  FMSUB = 39,
+  FNMADD = 40,
+  FNMSUB = 41,
   UNKNOWN = -1,
 };
 extern const char *INSTNAME[];
@@ -133,8 +121,7 @@ const int OP_SYSTEM = 0x73;
 const int OP_AUIPC = 0x17;
 const int OP_JAL = 0x6F;
 const int OP_JALR = 0x67;
-const int OP_IMM32 = 0x1B;
-const int OP_32 = 0x3B;
+const int OP_FUSED = 0x0B;
 
 inline bool isBranch(Inst inst) {
   if (inst == BEQ || inst == BNE || inst == BLT || inst == BGE ||
@@ -152,8 +139,8 @@ inline bool isJump(Inst inst) {
 }
 
 inline bool isReadMem(Inst inst) {
-  if (inst == LB || inst == LH || inst == LW || inst == LD || inst == LBU ||
-      inst == LHU || inst == LWU) {
+  if (inst == LB || inst == LH || inst == LW || inst == LBU ||
+      inst == LHU) {
     return true;
   }
   return false;
@@ -166,8 +153,8 @@ public:
   bool isSingleStep;
   bool verbose;
   bool shouldDumpHistory;
-  uint64_t pc;
-  uint64_t reg[RISCV::REGNUM];
+  uint32_t pc;
+  uint32_t reg[RISCV::REGNUM];
   uint32_t stackBase;
   uint32_t maximumStackSize;
   MemoryManager *memory;
@@ -192,7 +179,7 @@ private:
     bool bubble;
     uint32_t stall;
 
-    uint64_t pc;
+    uint32_t pc;
     uint32_t inst;
     uint32_t len;
   } fReg, fRegNew;
@@ -200,30 +187,32 @@ private:
     // Control Signals
     bool bubble;
     uint32_t stall;
-    RISCV::RegId rs1, rs2;
+    RISCV::RegId rs1, rs2, rs3;
 
-    uint64_t pc;
+    uint32_t pc;
     RISCV::Inst inst;
-    int64_t op1;
-    int64_t op2;
+    int32_t op1;
+    int32_t op2;
+    int32_t op3;
     RISCV::RegId dest;
-    int64_t offset;
+    int32_t offset;
     bool predictedBranch;
-    uint64_t predictedPC; // for branch prediction module, predicted PC destination
-    uint64_t anotherPC;   // another possible prediction destination
+    uint32_t predictedPC; // for branch prediction module, predicted PC destination
+    uint32_t anotherPC;   // another possible prediction destination
   } dReg, dRegNew;
   struct EReg {
     // Control Signals
     bool bubble;
     uint32_t stall;
 
-    uint64_t pc;
+    uint32_t pc;
     RISCV::Inst inst;
-    int64_t op1;
-    int64_t op2;
+    int32_t op1;
+    int32_t op2;
+    int32_t op3;
     bool writeReg;
     RISCV::RegId destReg;
-    int64_t out;
+    int32_t out;
     bool writeMem;
     bool readMem;
     bool readSignExt;
@@ -235,11 +224,12 @@ private:
     bool bubble;
     uint32_t stall;
 
-    uint64_t pc;
+    uint32_t pc;
     RISCV::Inst inst;
-    int64_t op1;
-    int64_t op2;
-    int64_t out;
+    int32_t op1;
+    int32_t op2;
+    int32_t op3;
+    int32_t out;
     bool writeReg;
     RISCV::RegId destReg;
   } mReg, mRegNew;
@@ -276,7 +266,7 @@ private:
   void memoryAccess();
   void writeBack();
 
-  int64_t handleSystemCall(int64_t op1, int64_t op2);
+  int32_t handleSystemCall(int32_t op1, int32_t op2);
 
   std::string getRegInfoStr();
   void panic(const char *format, ...);

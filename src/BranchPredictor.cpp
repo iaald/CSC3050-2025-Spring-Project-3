@@ -13,8 +13,8 @@ BranchPredictor::BranchPredictor() {
 
 BranchPredictor::~BranchPredictor() {}
 
-bool BranchPredictor::predict(uint32_t pc, uint32_t insttype, int64_t op1,
-                              int64_t op2, int64_t offset) {
+bool BranchPredictor::predict(uint32_t pc, uint32_t insttype, int32_t op1,
+                              int32_t op2, int32_t offset) {
   switch (this->strategy) {
   case NT:
     return false;
@@ -36,7 +36,7 @@ bool BranchPredictor::predict(uint32_t pc, uint32_t insttype, int64_t op1,
       return false;
     } else {
       dbgprintf("Strange Prediction Buffer!\n");
-    }   
+    }
   }
   break;
   default:
