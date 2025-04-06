@@ -179,6 +179,11 @@ public:
   void printStatistics();
 
 private:
+  int stallCnt;
+  int rstPcCnt;
+  bool forwardFetcher;
+  bool isJumporBranch;
+  uint32_t rstPc;
   struct FReg {
     // Control Signals
     bool bubble;
@@ -187,7 +192,7 @@ private:
     uint32_t pc;
     uint32_t inst;
     uint32_t len;
-  } fReg, fRegNew;
+  } fReg, fRegNew, decodeWho;
   struct DReg {
     // Control Signals
     bool bubble;

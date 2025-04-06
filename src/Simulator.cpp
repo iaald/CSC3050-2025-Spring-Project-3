@@ -94,8 +94,20 @@ void Simulator::simulate() {
   eReg.bubble = true;
   mReg.bubble = true;
 
+  this->rstPcCnt = -1;
+  this->forwardFetcher = false;
   // Main Simulation Loop
   while (true) {
+    if (this->rstPcCnt == 0) {
+      this->pc = this->rstPc;
+    }else if (this->rstPcCnt == 1)
+    {
+      this->fReg = this->decodeWho;
+    }
+    if (this->rstPcCnt >= 0) {
+      this->rstPcCnt --;
+    }
+
     if (this->reg[0] != 0) {
       // Some instruction might set this register to zero
       this->reg[0] = 0;
@@ -110,14 +122,26 @@ void Simulator::simulate() {
     this->executeWBReg = -1;
     this->memoryWriteBack = false;
     this->memoryWBReg = -1;
-
+    this->stallCnt = 0;
+    this->isJumporBranch = false;
     // THE EXECUTION ORDER of these functions are important!!!
     // Changing them will introduce strange bugs
+
+    uint32_t pcIn = this->pc;
+
     this->fetch();
+    if (this->forwardFetcher && this->rstPcCnt == 1) {
+      this->fReg.bubble = true;
+      this->forwardFetcher = false;
+    }
     this->decode();
     this->excecute();
     this->memoryAccess();
     this->writeBack();
+
+    if(stallCnt > 0) {
+      this->decodeWho = fReg;
+    }
 
     if (!this->fReg.stall) this->fReg = this->fRegNew;
     else this->fReg.stall--;
@@ -129,6 +153,40 @@ void Simulator::simulate() {
     memset(&this->dRegNew, 0, sizeof(this->dRegNew));
     memset(&this->eRegNew, 0, sizeof(this->eRegNew));
     memset(&this->mRegNew, 0, sizeof(this->mRegNew));
+    switch (this->stallCnt)
+    {
+      case 0:
+        break;
+      case 1:
+        if(this->rstPcCnt < 0){
+          this->rstPcCnt = 1;
+        }
+        this->dReg.bubble = true;
+        break;
+      case 2:
+        if(this->rstPcCnt < 0){
+          this->rstPcCnt = 2;
+        }
+        this->dReg.bubble = true;
+        this->fReg.bubble = true;
+        break;
+      case 3:
+        if(this->rstPcCnt < 0){
+          this->rstPcCnt = 3;
+        }
+        this->dReg.bubble = true;
+        this->fReg.bubble = true;
+        this->forwardFetcher = true;
+        break;
+      default:
+        break;
+    }
+    if(this->stallCnt > 0){
+      this->rstPc = this->pc;
+    }
+    if(this->rstPcCnt > 0){
+      this->pc = pcIn;
+    }
 
     // The Branch perdiction happens here to avoid strange bugs in branch prediction
     if (!this->dReg.bubble && !this->dReg.stall && !this->fReg.stall && this->dReg.predictedBranch) {
@@ -136,6 +194,9 @@ void Simulator::simulate() {
     }
 
     this->history.cycleCount++;
+    if(verbose){
+      std::cerr << this->history.cycleCount << std::endl;
+    }
     this->history.regRecord.push_back(this->getRegInfoStr());
     if (this->history.regRecord.size() >= 100000) { // Avoid using up memory
       this->history.regRecord.clear();
@@ -143,6 +204,8 @@ void Simulator::simulate() {
     }
 
     if (verbose) {
+      std::cerr << "STALL COUNT: " << this->stallCnt << std::endl;
+      std::cerr << "RST PC COUNT: " << this->rstPcCnt << std::endl;
       this->printInfo();
     }
 
@@ -523,7 +586,7 @@ void Simulator::decode() {
         insttype = LHU;
         break;
       default:
-        this->panic("Unknown funct3 0x%x for OP_LOAD\n", funct3);
+        this->panic("Unknown funct3 0x   for OP_LOAD\n", funct3);
       }
       op1str = REGNAME[rs1];
       op2str = std::to_string(op2);
@@ -879,6 +942,7 @@ void Simulator::excecute() {
     } else {
       // Control Hazard Here
       this->pc = this->dReg.anotherPC;
+      this->isJumporBranch = true;
       this->fRegNew.bubble = true;
       this->dRegNew.bubble = true;
       this->history.unpredictedBranch++;
@@ -890,24 +954,31 @@ void Simulator::excecute() {
   if (isJump(inst)) {
     // Control hazard here
     this->pc = dRegPC;
+    this->isJumporBranch = true;
     this->fRegNew.bubble = true;
     this->dRegNew.bubble = true;
     this->history.controlHazardCount++;
   }
   if (isReadMem(inst)) {
     if (this->dRegNew.rs1 == destReg || this->dRegNew.rs2 == destReg || this->dRegNew.rs3 == destReg) {
-      this->fRegNew.stall = 2;
-      this->dRegNew.stall = 2;
-      this->eRegNew.bubble = true;
-      this->history.cycleCount--;
-      this->history.memoryHazardCount++;
+      if (dataforwarding) {
+        this->fRegNew.stall = 2;
+        this->dRegNew.stall = 2;
+        this->eRegNew.bubble = true;
+        this->history.cycleCount--;
+        this->history.memoryHazardCount++;
+      }
+      else {
+        this->stallCnt = 3;
+        this->history.memoryHazardCount++;
+      }
     }
   }
 
   // Check for data hazard and forward data
   if (writeReg && destReg != 0 && !isReadMem(inst)) {
     if (this->dRegNew.rs1 == destReg) {
-      if (1) {
+      if (dataforwarding) {
         this->dRegNew.op1 = out;
         this->executeWBReg = destReg;
         this->executeWriteBack = true;
@@ -916,14 +987,12 @@ void Simulator::excecute() {
           printf("  Forward Data %s to Decode op1\n", REGNAME[destReg]);
       }
       else {
-        this->fRegNew.stall = 2;
-        this->dRegNew.stall = 2;
-        this->eRegNew.bubble = true;
+        this->stallCnt = 3;
         this->history.dataHazardCount++;
       }
     }
     if (this->dRegNew.rs2 == destReg) {
-      if (1) {
+      if (dataforwarding) {
         this->dRegNew.op2 = out;
         this->executeWBReg = destReg;
         this->executeWriteBack = true;
@@ -932,14 +1001,12 @@ void Simulator::excecute() {
           printf("  Forward Data %s to Decode op2\n", REGNAME[destReg]);
       }
       else {
-        this->fRegNew.stall = 2;
-        this->dRegNew.stall = 2;
-        this->eRegNew.bubble = true;
+        this->stallCnt = 3;
         this->history.dataHazardCount++;
       }
     }
     if (this->dRegNew.rs3 == destReg) {
-      if (1) {
+      if (dataforwarding) {
         this->dRegNew.op3 = out;
         this->executeWBReg = destReg;
         this->executeWriteBack = true;
@@ -948,8 +1015,7 @@ void Simulator::excecute() {
           printf("  Forward Data %s to Decode op3\n", REGNAME[destReg]);
       }
       else {
-        this->fRegNew.stall = 2;
-        this->dRegNew.stall = 2;
+        this->stallCnt = 3;
         this->history.dataHazardCount++;
       }
     }
@@ -1060,76 +1126,62 @@ void Simulator::memoryAccess() {
 
   // Check for data hazard and forward data
   if (writeReg && destReg != 0) {
-    if (this->dRegNew.rs1 == destReg) {
-      // Avoid overwriting recent values
-      if (this->executeWriteBack == false ||
-          (this->executeWriteBack && this->executeWBReg != destReg)) {
-        if (1) {
-          this->dRegNew.op1 = out;
-          this->memoryWriteBack = true;
-          this->memoryWBReg = destReg;
-          this->history.dataHazardCount++;
-          if (verbose)
-            printf("  Forward Data %s to Decode op1\n", REGNAME[destReg]);
-        }
-        else {
-          this->fRegNew.stall = 1;
-          this->dRegNew.stall = 1;
-          this->eRegNew.bubble = true;
-          this->history.dataHazardCount++;
+    if (dataforwarding) {
+      if (this->dRegNew.rs1 == destReg) {
+        // Avoid overwriting recent values
+        if (this->executeWriteBack == false ||
+            (this->executeWriteBack && this->executeWBReg != destReg)) {
+            this->dRegNew.op1 = out;
+            this->memoryWriteBack = true;
+            this->memoryWBReg = destReg;
+            this->history.dataHazardCount++;
+            if (verbose)
+              printf("  Forward Data %s to Decode op1\n", REGNAME[destReg]);
         }
       }
-    }
-    if (this->dRegNew.rs2 == destReg) {
-      // Avoid overwriting recent values
-      if (this->executeWriteBack == false ||
-          (this->executeWriteBack && this->executeWBReg != destReg)) {
-        if (1) {
-          this->dRegNew.op2 = out;
-          this->memoryWriteBack = true;
-          this->memoryWBReg = destReg;
-          this->history.dataHazardCount++;
-          if (verbose)
+      if (this->dRegNew.rs2 == destReg) {
+        // Avoid overwriting recent values
+        if (this->executeWriteBack == false ||
+            (this->executeWriteBack && this->executeWBReg != destReg)) {
+            this->dRegNew.op2 = out;
+            this->memoryWriteBack = true;
+            this->memoryWBReg = destReg;
+            this->history.dataHazardCount++;
+            if (verbose)
+              printf("  Forward Data %s to Decode op2\n", REGNAME[destReg]);
+        }
+      }
+      if (this->dRegNew.rs3 == destReg) {
+        // Avoid overwriting recent values
+        if (this->executeWriteBack == false ||
+            (this->executeWriteBack && this->executeWBReg != destReg)) {
+            this->dRegNew.op3 = out;
+            this->memoryWriteBack = true;
+            this->memoryWBReg = destReg;
+            this->history.dataHazardCount++;
+            if (verbose)
+              printf("  Forward Data %s to Decode op3\n", REGNAME[destReg]);
+        }
+      }
+      // Corner case of forwarding mem load data to stalled decode reg
+      if (this->dReg.stall) {
+        if (this->dReg.rs1 == destReg) this->dReg.op1 = out;
+        if (this->dReg.rs2 == destReg) this->dReg.op2 = out;
+        if (this->dReg.rs3 == destReg) this->dReg.op3 = out;
+        this->memoryWriteBack = true;
+        this->memoryWBReg = destReg;
+        this->history.dataHazardCount++;
+        if (verbose)
             printf("  Forward Data %s to Decode op2\n", REGNAME[destReg]);
-        }
-        else {
-          this->fRegNew.stall = 1;
-          this->dRegNew.stall = 1;
-          this->eRegNew.bubble = true;
+      }
+    }
+    else {
+      if (this->stallCnt == 0 && !this->isJumporBranch) {
+        if (this->dRegNew.rs1 == destReg || this->dRegNew.rs2 == destReg || this->dRegNew.rs3 == destReg) {
+          this->stallCnt = 2;
           this->history.dataHazardCount++;
         }
       }
-    }
-    if (this->dRegNew.rs3 == destReg) {
-      // Avoid overwriting recent values
-      if (this->executeWriteBack == false ||
-          (this->executeWriteBack && this->executeWBReg != destReg)) {
-        if (1) {
-          this->dRegNew.op3 = out;
-          this->memoryWriteBack = true;
-          this->memoryWBReg = destReg;
-          this->history.dataHazardCount++;
-          if (verbose)
-            printf("  Forward Data %s to Decode op3\n", REGNAME[destReg]);
-        }
-        else {
-          this->fRegNew.stall = 1;
-          this->dRegNew.stall = 1;
-          this->eRegNew.bubble = true;
-          this->history.dataHazardCount++;
-        }
-      }
-    }
-    // Corner case of forwarding mem load data to stalled decode reg
-    if (this->dReg.stall) {
-      if (this->dReg.rs1 == destReg) this->dReg.op1 = out;
-      if (this->dReg.rs2 == destReg) this->dReg.op2 = out;
-      if (this->dReg.rs3 == destReg) this->dReg.op3 = out;
-      this->memoryWriteBack = true;
-      this->memoryWBReg = destReg;
-      this->history.dataHazardCount++;
-      if (verbose)
-          printf("  Forward Data %s to Decode op2\n", REGNAME[destReg]);
     }
   }
 
@@ -1218,15 +1270,10 @@ void Simulator::writeBack() {
       if(this->dRegNew.rs1 == this->mReg.destReg ||
          this->dRegNew.rs2 == this->mReg.destReg ||
          this->dRegNew.rs3 == this->mReg.destReg) {
-        this->dReg.stall = 1;
-        this->fReg.stall = 1;
-        this->dReg.bubble = true;
-
-        if(this->pc == this->fRegNew.pc + 4){
-          this->pc = this->fRegNew.pc;
-        }
-
-        this->history.dataHazardCount ++;
+          if (stallCnt == 0&& !this->isJumporBranch) {
+            stallCnt = 1;
+            this->history.dataHazardCount ++;
+          }
       }
     }
     // Real Write Back
